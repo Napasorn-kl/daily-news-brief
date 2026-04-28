@@ -14,28 +14,37 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Get latest news content
-        id: get_news
-        run: |
-          LATEST_FILE=$(ls -t news/*.md | head -1)
-          CONTENT=$(cat "$LATEST_FILE" | head -n 20)
-          echo "news_content<<EOF" >> $GITHUB_OUTPUT
-          echo "$CONTENT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Send to LINE
+      - name: Send news sections to LINE
         env:
           LINE_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
-          NEWS_CONTENT: ${{ steps.get_news.outputs.news_content }}
         run: |
-          MESSAGE="📢 สรุปข่าว AI มาแล้วครับ!
+          LATEST_FILE=$(ls -t news/*.md | head -1)
+          echo "Sending file: $LATEST_FILE"
 
-          ${NEWS_CONTENT}
+          send_message() {
+            local TEXT="$1"
+            local JSON=$(python3 -c "import json,sys; print(json.dumps(sys.stdin.read()))" <<< "$TEXT")
+            curl -s -X POST https://api.line.me/v2/bot/message/push \
+              -H "Authorization: Bearer ${LINE_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"to\":\"${LINE_USER_ID}\",\"messages\":[{\"type\":\"text\",\"text\":${JSON}}]}"
+            sleep 1
+          }
 
-          อ่านเพิ่มเติมได้ที่ GitHub ของคุณครับ"
+          # แยกเนื้อหาตาม section [1] ถึง [5]
+          FULL=$(cat "$LATEST_FILE")
 
-          curl -s -X POST https://api.line.me/v2/bot/message/push \
-            -H "Authorization: Bearer ${LINE_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"to\":\"${LINE_USER_ID}\",\"messages\":[{\"type\":\"text\",\"text\":$(echo "$MESSAGE" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}]}"
+          SEC1=$(echo "$FULL" | awk '/^\## \[1\./{found=1} found{print} /^\## \[2\./{if(found>1)exit; found++}' | head -n -1)
+          SEC2=$(echo "$FULL" | awk '/^\## \[2\./{found=1} found{print} /^\## \[3\./{if(found>1)exit; found++}' | head -n -1)
+          SEC3=$(echo "$FULL" | awk '/^\## \[3\./{found=1} found{print} /^\## \[4\./{if(found>1)exit; found++}' | head -n -1)
+          SEC4=$(echo "$FULL" | awk '/^\## \[4\./{found=1} found{print} /^\## \[5\./{if(found>1)exit; found++}' | head -n -1)
+          SEC5=$(echo "$FULL" | awk '/^\## \[5\./{found=1} found{print}')
+
+          HEADER=$(echo "$FULL" | head -3)
+
+          send_message "$(printf '%s\n\n%s' "$HEADER" "$SEC1")"
+          send_message "$SEC2"
+          send_message "$SEC3"
+          send_message "$SEC4"
+          send_message "$SEC5"
