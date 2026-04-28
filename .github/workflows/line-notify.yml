@@ -14,37 +14,72 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Send news sections to LINE
+      - name: Send news to LINE
         env:
           LINE_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
         run: |
-          LATEST_FILE=$(ls -t news/*.md | head -1)
-          echo "Sending file: $LATEST_FILE"
+          # หาไฟล์ที่ถูก push มาใน commit นี้
+          CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'news/*.md' | head -1)
+          LATEST_FILE=${CHANGED:-$(ls news/*.md | sort -r | head -1)}
+          echo "Using file: $LATEST_FILE"
 
-          send_message() {
-            local TEXT="$1"
-            local JSON=$(python3 -c "import json,sys; print(json.dumps(sys.stdin.read()))" <<< "$TEXT")
-            curl -s -X POST https://api.line.me/v2/bot/message/push \
-              -H "Authorization: Bearer ${LINE_TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d "{\"to\":\"${LINE_USER_ID}\",\"messages\":[{\"type\":\"text\",\"text\":${JSON}}]}"
-            sleep 1
-          }
+          python3 << 'PYEOF'
+import os, re, json, time
+import urllib.request
 
-          # แยกเนื้อหาตาม section [1] ถึง [5]
-          FULL=$(cat "$LATEST_FILE")
+token = os.environ["LINE_TOKEN"]
+user_id = os.environ["LINE_USER_ID"]
+filepath = os.environ.get("LATEST_FILE", "")
 
-          SEC1=$(echo "$FULL" | awk '/^\## \[1\./{found=1} found{print} /^\## \[2\./{if(found>1)exit; found++}' | head -n -1)
-          SEC2=$(echo "$FULL" | awk '/^\## \[2\./{found=1} found{print} /^\## \[3\./{if(found>1)exit; found++}' | head -n -1)
-          SEC3=$(echo "$FULL" | awk '/^\## \[3\./{found=1} found{print} /^\## \[4\./{if(found>1)exit; found++}' | head -n -1)
-          SEC4=$(echo "$FULL" | awk '/^\## \[4\./{found=1} found{print} /^\## \[5\./{if(found>1)exit; found++}' | head -n -1)
-          SEC5=$(echo "$FULL" | awk '/^\## \[5\./{found=1} found{print}')
+# อ่านไฟล์ผ่าน env
+import subprocess
+result = subprocess.run(["bash", "-c", "echo $LATEST_FILE"], capture_output=True, text=True)
+PYEOF
 
-          HEADER=$(echo "$FULL" | head -3)
+          python3 - "$LATEST_FILE" << 'PYEOF'
+import sys, os, re, json, time
+import urllib.request
 
-          send_message "$(printf '%s\n\n%s' "$HEADER" "$SEC1")"
-          send_message "$SEC2"
-          send_message "$SEC3"
-          send_message "$SEC4"
-          send_message "$SEC5"
+token = os.environ["LINE_TOKEN"]
+user_id = os.environ["LINE_USER_ID"]
+filepath = sys.argv[1]
+
+content = open(filepath, encoding="utf-8").read()
+
+# แบ่ง section ตาม ## [N.
+sections = re.split(r'(?=^## \[\d)', content, flags=re.MULTILINE)
+sections = [s.strip() for s in sections if s.strip()]
+
+# header (บรรทัดก่อน section แรก)
+header_match = re.match(r'^(.*?)(?=^## \[)', content, re.DOTALL | re.MULTILINE)
+header = header_match.group(1).strip() if header_match else ""
+
+def send(text):
+    if not text.strip():
+        return
+    payload = json.dumps({
+        "to": user_id,
+        "messages": [{"type": "text", "text": text}]
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.line.me/v2/bot/message/push",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+    )
+    with urllib.request.urlopen(req) as resp:
+        print(f"  → {resp.status} {resp.read().decode()[:80]}")
+    time.sleep(1)
+
+# ส่ง header + section 1 รวมกัน
+if sections:
+    first = f"{header}\n\n{sections[0]}" if header else sections[0]
+    print("Sending [Header + Section 1]")
+    send(first)
+    for i, sec in enumerate(sections[1:], 2):
+        print(f"Sending [Section {i}]")
+        send(sec)
+PYEOF
