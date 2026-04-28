@@ -23,14 +23,19 @@ jobs:
           echo "$CONTENT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Send to Line Notify
-        uses: appleboy/line-action@master
-        with:
-          to: ${{ secrets.LINE_USER_ID }}
-          channel_access_token: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
-          message: |
-            📢 สรุปข่าว AI มาแล้วครับ!
+      - name: Send to LINE
+        env:
+          LINE_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          NEWS_CONTENT: ${{ steps.get_news.outputs.news_content }}
+        run: |
+          MESSAGE="📢 สรุปข่าว AI มาแล้วครับ!
 
-            ${{ steps.get_news.outputs.news_content }}
+          ${NEWS_CONTENT}
 
-            อ่านเพิ่มเติมได้ที่ GitHub ของคุณครับ
+          อ่านเพิ่มเติมได้ที่ GitHub ของคุณครับ"
+
+          curl -s -X POST https://api.line.me/v2/bot/message/push \
+            -H "Authorization: Bearer ${LINE_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"to\":\"${LINE_USER_ID}\",\"messages\":[{\"type\":\"text\",\"text\":$(echo "$MESSAGE" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}]}"
