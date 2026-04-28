@@ -19,67 +19,9 @@ jobs:
           LINE_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
         run: |
-          # หาไฟล์ที่ถูก push มาใน commit นี้
-          CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'news/*.md' | head -1)
-          LATEST_FILE=${CHANGED:-$(ls news/*.md | sort -r | head -1)}
+          LATEST_FILE=$(git diff --name-only HEAD~1 HEAD -- 'news/*.md' | grep -v send_line | head -1)
+          if [ -z "$LATEST_FILE" ]; then
+            LATEST_FILE=$(ls news/*.md | grep -v send_line | sort -r | head -1)
+          fi
           echo "Using file: $LATEST_FILE"
-
-          python3 << 'PYEOF'
-import os, re, json, time
-import urllib.request
-
-token = os.environ["LINE_TOKEN"]
-user_id = os.environ["LINE_USER_ID"]
-filepath = os.environ.get("LATEST_FILE", "")
-
-# อ่านไฟล์ผ่าน env
-import subprocess
-result = subprocess.run(["bash", "-c", "echo $LATEST_FILE"], capture_output=True, text=True)
-PYEOF
-
-          python3 - "$LATEST_FILE" << 'PYEOF'
-import sys, os, re, json, time
-import urllib.request
-
-token = os.environ["LINE_TOKEN"]
-user_id = os.environ["LINE_USER_ID"]
-filepath = sys.argv[1]
-
-content = open(filepath, encoding="utf-8").read()
-
-# แบ่ง section ตาม ## [N.
-sections = re.split(r'(?=^## \[\d)', content, flags=re.MULTILINE)
-sections = [s.strip() for s in sections if s.strip()]
-
-# header (บรรทัดก่อน section แรก)
-header_match = re.match(r'^(.*?)(?=^## \[)', content, re.DOTALL | re.MULTILINE)
-header = header_match.group(1).strip() if header_match else ""
-
-def send(text):
-    if not text.strip():
-        return
-    payload = json.dumps({
-        "to": user_id,
-        "messages": [{"type": "text", "text": text}]
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        "https://api.line.me/v2/bot/message/push",
-        data=payload,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
-    )
-    with urllib.request.urlopen(req) as resp:
-        print(f"  → {resp.status} {resp.read().decode()[:80]}")
-    time.sleep(1)
-
-# ส่ง header + section 1 รวมกัน
-if sections:
-    first = f"{header}\n\n{sections[0]}" if header else sections[0]
-    print("Sending [Header + Section 1]")
-    send(first)
-    for i, sec in enumerate(sections[1:], 2):
-        print(f"Sending [Section {i}]")
-        send(sec)
-PYEOF
+          python3 news/send_line.py "$LATEST_FILE"
