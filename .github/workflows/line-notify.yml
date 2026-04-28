@@ -1,28 +1,36 @@
-name: Daily News Brief to LINE
+name: Send AI News to Line
 
 on:
-  schedule:
-    - cron: '0 1 * * *'  # 08:00 ICT (UTC+7) every day
-  workflow_dispatch:
+  push:
+    paths:
+      - 'news/*.md'
 
 jobs:
-  send-news:
+  notify:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          fetch-depth: 2
 
-      - name: Install dependencies
-        run: pip install requests feedparser
+      - name: Get latest news content
+        id: get_news
+        run: |
+          LATEST_FILE=$(ls -t news/*.md | head -1)
+          CONTENT=$(cat "$LATEST_FILE" | head -n 20)
+          echo "news_content<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Fetch news and send to LINE
-        env:
-          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
-          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
-        run: python news/fetch_and_notify.py
+      - name: Send to Line Notify
+        uses: appleboy/line-action@master
+        with:
+          to: ${{ secrets.LINE_USER_ID }}
+          channel_access_token: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          message: |
+            📢 สรุปข่าว AI มาแล้วครับ!
+
+            ${{ steps.get_news.outputs.news_content }}
+
+            อ่านเพิ่มเติมได้ที่ GitHub ของคุณครับ
