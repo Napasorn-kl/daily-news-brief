@@ -20,6 +20,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Check available Gemini models
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}" \
+            | python3 -c "import json,sys; [print(m['name'], m.get('supportedGenerationMethods','')) for m in json.load(sys.stdin).get('models',[])]"
+
       - name: Run AI Daily Notifier
         env:
           GNEWS_API_KEY: ${{ secrets.GNEWS_API_KEY }}
