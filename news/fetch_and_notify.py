@@ -95,7 +95,7 @@ def summarize_with_gemini(articles: list[dict]) -> str:
         for a in articles[:10]
     ])
     prompt = f"{SYSTEM_PROMPT}\n\nข่าววันนี้:\n\n{news_text}"
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-8b:generateContent?key={GEMINI_API_KEY}"
     resp = requests.post(url, json={
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"maxOutputTokens": 1500, "temperature": 0.4},
