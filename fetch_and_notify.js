@@ -1,12 +1,13 @@
 /**
  * AI Daily LINE Notifier — Tier 2 (Node.js)
- * รันผ่าน Hostinger Cron Job หรือ GitHub Actions
+ * รันผ่าน Hostinger Node.js Web App + Cron
  */
 
 const https = require("https");
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const express = require("express");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 // --- Config ---
@@ -169,20 +170,34 @@ async function sendLine(message) {
 
 async function main() {
   log("INFO", "=== AI Daily LINE Notifier started ===");
-  try {
-    const articles = await fetchNews();
-    if (!articles || articles.length === 0) {
-      log("WARN", "No articles found — skipping");
-      return;
-    }
-    const summary = await summarizeWithGemini(articles);
-    await sendLine(summary);
-    log("INFO", "=== Done ===");
-  } catch (err) {
-    log("ERROR", `${err.message}`);
-    if (err.stack) log("ERROR", err.stack);
-    process.exit(1);
+  const articles = await fetchNews();
+  if (!articles || articles.length === 0) {
+    log("WARN", "No articles found — skipping");
+    return;
   }
+  const summary = await summarizeWithGemini(articles);
+  await sendLine(summary);
+  log("INFO", "=== Done ===");
 }
 
-main();
+// --- Express Server ---
+const app = express();
+const PORT = process.env.PORT || 3000;
+const CRON_SECRET = process.env.CRON_SECRET || "";
+
+app.get("/", (_req, res) => res.send("AI Daily Notifier is running ✅"));
+
+app.get("/run", async (req, res) => {
+  if (CRON_SECRET && req.query.token !== CRON_SECRET) {
+    return res.status(401).send("Unauthorized");
+  }
+  try {
+    await main();
+    res.send("Done ✅");
+  } catch (err) {
+    log("ERROR", err.message);
+    res.status(500).send(`Error: ${err.message}`);
+  }
+});
+
+app.listen(PORT, () => log("INFO", `Server listening on port ${PORT}`));
