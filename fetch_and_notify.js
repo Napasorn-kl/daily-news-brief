@@ -11,7 +11,7 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 // --- Config ---
 const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const LINE_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 const LINE_USER_ID = process.env.LINE_USER_ID;
 
@@ -92,8 +92,8 @@ async function fetchNews() {
   return data.articles;
 }
 
-async function summarizeWithOpenAI(articles) {
-  log("INFO", "Summarizing with OpenAI gpt-4o-mini...");
+async function summarizeWithGemini(articles) {
+  log("INFO", "Summarizing with Gemini 1.5 Flash...");
 
   const newsText = articles
     .slice(0, 10)
@@ -103,7 +103,7 @@ async function summarizeWithOpenAI(articles) {
     )
     .join("\n\n");
 
-  const systemPrompt = `คุณคือบรรณาธิการข่าว AI ระดับมืออาชีพ สรุปข่าวเป็นภาษาไทยตาม Template นี้เท่านั้น:
+  const prompt = `คุณคือบรรณาธิการข่าว AI ระดับมืออาชีพ สรุปข่าวเป็นภาษาไทยตาม Template นี้เท่านั้น:
 
 🤖 AI DAILY | ${TODAY}
 ธีมวันนี้: [ธีมสั้นๆ 1 ประโยค]
@@ -132,23 +132,21 @@ async function summarizeWithOpenAI(articles) {
 [ชื่อข่าว 2]: [URL]
 [ชื่อข่าว 3]: [URL]
 
-กฎเหล็ก: ห้ามเพิ่มหัวข้อนอก Template, ใช้ภาษาไทยทั้งหมด, รักษาโครงสร้างให้ครบถ้วน`;
+กฎเหล็ก: ห้ามเพิ่มหัวข้อนอก Template, ใช้ภาษาไทยทั้งหมด, รักษาโครงสร้างให้ครบถ้วน
+
+ข่าววันนี้:
+
+${newsText}`;
 
   const response = await httpPost(
-    "https://api.openai.com/v1/chat/completions",
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
     {
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: `ข่าววันนี้:\n\n${newsText}` },
-      ],
-      max_tokens: 1500,
-      temperature: 0.4,
-    },
-    { Authorization: `Bearer ${OPENAI_API_KEY}` }
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 1500, temperature: 0.4 },
+    }
   );
 
-  const summary = response.choices[0].message.content.trim();
+  const summary = response.candidates[0].content.parts[0].text.trim();
   log("INFO", `Summary generated (${summary.length} chars)`);
   return summary;
 }
@@ -177,7 +175,7 @@ async function main() {
       log("WARN", "No articles found — skipping");
       return;
     }
-    const summary = await summarizeWithOpenAI(articles);
+    const summary = await summarizeWithGemini(articles);
     await sendLine(summary);
     log("INFO", "=== Done ===");
   } catch (err) {

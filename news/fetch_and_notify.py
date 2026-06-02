@@ -8,7 +8,6 @@ import logging
 import requests
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from openai import OpenAI
 from dotenv import load_dotenv
 import os
 
@@ -30,7 +29,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 GNEWS_API_KEY          = os.environ["GNEWS_API_KEY"]
-OPENAI_API_KEY         = os.environ["OPENAI_API_KEY"]
+GEMINI_API_KEY         = os.environ["GEMINI_API_KEY"]
 LINE_TOKEN             = os.environ["LINE_CHANNEL_ACCESS_TOKEN"]
 LINE_USER_ID           = os.environ["LINE_USER_ID"]
 
@@ -88,24 +87,21 @@ def fetch_news() -> list[dict]:
     return articles
 
 
-def summarize_with_openai(articles: list[dict]) -> str:
-    """สรุปข่าวด้วย OpenAI gpt-4o-mini"""
-    log.info("Summarizing with OpenAI gpt-4o-mini...")
+def summarize_with_gemini(articles: list[dict]) -> str:
+    """สรุปข่าวด้วย Gemini 1.5 Flash"""
+    log.info("Summarizing with Gemini 1.5 Flash...")
     news_text = "\n\n".join([
         f"Title: {a['title']}\nSource: {a['source']['name']}\nURL: {a['url']}\nContent: {a.get('description', '')}"
         for a in articles[:10]
     ])
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"ข่าววันนี้:\n\n{news_text}"},
-        ],
-        max_tokens=1500,
-        temperature=0.4,
-    )
-    summary = response.choices[0].message.content.strip()
+    prompt = f"{SYSTEM_PROMPT}\n\nข่าววันนี้:\n\n{news_text}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    resp = requests.post(url, json={
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"maxOutputTokens": 1500, "temperature": 0.4},
+    }, timeout=30)
+    resp.raise_for_status()
+    summary = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
     log.info(f"Summary generated ({len(summary)} chars)")
     return summary
 
@@ -133,7 +129,7 @@ def main():
         if not articles:
             log.warning("No articles found — skipping")
             return
-        summary = summarize_with_openai(articles)
+        summary = summarize_with_gemini(articles)
         send_line(summary)
         log.info("=== Done ===")
     except requests.HTTPError as e:
