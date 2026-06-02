@@ -98,7 +98,7 @@ def summarize_with_gemini(articles: list[dict]) -> str:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     resp = requests.post(url, json={
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"maxOutputTokens": 1500, "temperature": 0.4},
+        "generationConfig": {"maxOutputTokens": 2048, "temperature": 0.4},
     }, timeout=30)
     resp.raise_for_status()
     summary = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
