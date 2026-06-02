@@ -89,13 +89,13 @@ def fetch_news() -> list[dict]:
 
 def summarize_with_gemini(articles: list[dict]) -> str:
     """สรุปข่าวด้วย Gemini 1.5 Flash"""
-    log.info("Summarizing with Gemini 1.5 Flash...")
+    log.info("Summarizing with Gemini 2.5 Flash...")
     news_text = "\n\n".join([
         f"Title: {a['title']}\nSource: {a['source']['name']}\nURL: {a['url']}\nContent: {a.get('description', '')}"
         for a in articles[:10]
     ])
     prompt = f"{SYSTEM_PROMPT}\n\nข่าววันนี้:\n\n{news_text}"
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     resp = requests.post(url, json={
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"maxOutputTokens": 1500, "temperature": 0.4},
