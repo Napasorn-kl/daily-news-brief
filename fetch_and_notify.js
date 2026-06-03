@@ -172,10 +172,7 @@ async function sendLine(message) {
     },
     { Authorization: `Bearer ${LINE_TOKEN}` }
   );
-  log(
-    "INFO",
-    `LINE broadcast OK — message ID: ${response.sentMessages[0].id}`
-  );
+  log("INFO", "LINE broadcast OK");
 }
 
 async function main() {

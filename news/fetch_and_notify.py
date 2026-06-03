@@ -127,7 +127,7 @@ def send_line(message: str) -> None:
         timeout=15,
     )
     resp.raise_for_status()
-    log.info(f"LINE broadcast OK — message ID: {resp.json()['sentMessages'][0]['id']}")
+    log.info("LINE broadcast OK")
 
 
 def main():
