@@ -207,7 +207,7 @@ app.get("/run", async (req, res) => {
 app.listen(PORT, () => log("INFO", `Server listening on port ${PORT}`));
 
 // --- Cron Job: รันทุกวัน 08:00 ICT (01:00 UTC) ---
-cron.schedule("56 5 * * *", () => {
+cron.schedule("56 12 * * *", () => {
   log("INFO", "Cron triggered — running daily job...");
   main().catch((err) => log("ERROR", err.message));
-}, { timezone: "UTC" });
+}, { timezone: "Asia/Bangkok" });
