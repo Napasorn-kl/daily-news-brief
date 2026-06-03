@@ -8,6 +8,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
+const cron = require("node-cron");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 // --- Config ---
@@ -204,3 +205,9 @@ app.get("/run", async (req, res) => {
 });
 
 app.listen(PORT, () => log("INFO", `Server listening on port ${PORT}`));
+
+// --- Cron Job: รันทุกวัน 08:00 ICT (01:00 UTC) ---
+cron.schedule("0 1 * * *", () => {
+  log("INFO", "Cron triggered — running daily job...");
+  main().catch((err) => log("ERROR", err.message));
+}, { timezone: "UTC" });
