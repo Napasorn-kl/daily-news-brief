@@ -113,16 +113,16 @@ def send_line(message: str) -> None:
     """ส่งข้อความไปยัง LINE Messaging API"""
     log.info("Sending to LINE...")
     resp = requests.post(
-        "https://api.line.me/v2/bot/message/push",
+        "https://api.line.me/v2/bot/message/broadcast",
         headers={
             "Authorization": f"Bearer {LINE_TOKEN}",
             "Content-Type": "application/json",
         },
-        json={"to": LINE_USER_ID, "messages": [{"type": "text", "text": message}]},
+        json={"messages": [{"type": "text", "text": message}]},
         timeout=15,
     )
     resp.raise_for_status()
-    log.info(f"LINE sent OK — message ID: {resp.json()['sentMessages'][0]['id']}")
+    log.info(f"LINE broadcast OK — message ID: {resp.json()['sentMessages'][0]['id']}")
 
 
 def main():

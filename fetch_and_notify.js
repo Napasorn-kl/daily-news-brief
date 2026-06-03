@@ -159,16 +159,15 @@ ${newsText}`;
 async function sendLine(message) {
   log("INFO", "Sending to LINE...");
   const response = await httpPost(
-    "https://api.line.me/v2/bot/message/push",
+    "https://api.line.me/v2/bot/message/broadcast",
     {
-      to: LINE_USER_ID,
       messages: [{ type: "text", text: message }],
     },
     { Authorization: `Bearer ${LINE_TOKEN}` }
   );
   log(
     "INFO",
-    `LINE sent OK — message ID: ${response.sentMessages[0].id}`
+    `LINE broadcast OK — message ID: ${response.sentMessages[0].id}`
   );
 }
 
