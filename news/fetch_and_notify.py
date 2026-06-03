@@ -99,14 +99,19 @@ def summarize_with_gemini(articles: list[dict]) -> str:
     ])
     prompt = f"{SYSTEM_PROMPT}\n\nข่าววันนี้:\n\n{news_text}"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
-    resp = requests.post(url, json={
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"maxOutputTokens": 2048, "temperature": 0.4},
-    }, timeout=30)
-    resp.raise_for_status()
-    summary = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-    log.info(f"Summary generated ({len(summary)} chars)")
-    return summary
+    for attempt in range(1, 4):
+        resp = requests.post(url, json={
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"maxOutputTokens": 2048, "temperature": 0.4},
+        }, timeout=30)
+        if resp.status_code == 503 and attempt < 3:
+            log.warning(f"Gemini attempt {attempt} failed (503) — retrying in 15s...")
+            import time; time.sleep(15)
+            continue
+        resp.raise_for_status()
+        summary = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        log.info(f"Summary generated ({len(summary)} chars)")
+        return summary
 
 
 def send_line(message: str) -> None:
