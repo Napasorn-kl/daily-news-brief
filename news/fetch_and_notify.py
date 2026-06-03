@@ -102,7 +102,7 @@ def summarize_with_gemini(articles: list[dict]) -> str:
     for attempt in range(1, 4):
         resp = requests.post(url, json={
             "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"maxOutputTokens": 2048, "temperature": 0.4},
+            "generationConfig": {"maxOutputTokens": 4096, "temperature": 0.4},
         }, timeout=30)
         if resp.status_code == 503 and attempt < 3:
             log.warning(f"Gemini attempt {attempt} failed (503) — retrying in 15s...")

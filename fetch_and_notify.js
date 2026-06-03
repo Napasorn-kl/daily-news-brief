@@ -149,7 +149,7 @@ ${newsText}`;
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 2048, temperature: 0.4 },
+          generationConfig: { maxOutputTokens: 4096, temperature: 0.4 },
         }
       );
       const summary = response.candidates[0].content.parts[0].text.trim();
