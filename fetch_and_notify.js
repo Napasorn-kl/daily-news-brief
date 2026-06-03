@@ -15,14 +15,15 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const LINE_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-const LINE_USER_ID = process.env.LINE_USER_ID;
 
 const GNEWS_KEYWORDS = "AI OR Generative AI OR Machine Learning OR Tech Innovation";
 const ICT_OFFSET = 7 * 3600 * 1000;
 const THAI_MONTHS = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
   "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
-const _now = new Date(Date.now() + ICT_OFFSET);
-const TODAY = `${_now.getUTCDate()} ${THAI_MONTHS[_now.getUTCMonth()]} ${_now.getUTCFullYear() + 543}`;
+function getToday() {
+  const now = new Date(Date.now() + ICT_OFFSET);
+  return `${now.getUTCDate()} ${THAI_MONTHS[now.getUTCMonth()]} ${now.getUTCFullYear() + 543}`;
+}
 
 const LOG_DIR = path.join(__dirname, "logs");
 const LOG_FILE = path.join(LOG_DIR, "daily_news.log");
@@ -110,7 +111,7 @@ async function summarizeWithGemini(articles) {
 
   const prompt = `คุณคือบรรณาธิการข่าว AI สรุปข่าวเป็นภาษาไทยตาม Template นี้เท่านั้น ห้ามเพิ่มหรือลดหัวข้อ:
 
-🤖 AI DAILY | ${TODAY}
+🤖 AI DAILY | ${getToday()}
 ธีมวันนี้: [คำเดียวหรือวลีสั้น]
 
 【บทสรุป】
@@ -165,7 +166,7 @@ ${newsText}`;
 
 async function sendLine(message) {
   log("INFO", "Sending to LINE...");
-  const response = await httpPost(
+  await httpPost(
     "https://api.line.me/v2/bot/message/broadcast",
     {
       messages: [{ type: "text", text: message }],
